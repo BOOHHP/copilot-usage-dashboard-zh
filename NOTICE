@@ -1,0 +1,45 @@
+Copilot Usage Dashboard
+Copyright (c) pvjagtap
+Licensed under the MIT License (see LICENSE).
+
+This product includes software derived from third-party projects:
+
+-------------------------------------------------------------------------------
+Cache TTL Timer
+https://github.com/sukumarp2022/cache-timer
+Copyright (c) 2026 sukumarp2022
+Licensed under the MIT License.
+
+The prompt-cache TTL state machine, urgency ordering, countdown formatting,
+alert gating, and OS-native sound playback in the following files are derived
+from that project:
+
+  src/ttlState.ts
+  src/ttlProviders.ts   (threshold resolution; provider mapping was rewritten
+                         to use this extension's model catalog)
+  src/ttlSound.ts       (Windows playback hardened to pass the sound path via
+                         an environment variable instead of string
+                         interpolation)
+  media/alert.wav
+
+The MIT License permits this use; the copyright notice and permission notice
+from the original project are reproduced below.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+-------------------------------------------------------------------------------

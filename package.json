@@ -1,0 +1,537 @@
+{
+	"name": "copilot-usage-dashboard-zh",
+	"displayName": "Copilot Usage Dashboard 中文版",
+	"description": "GitHub Copilot 用量仪表盘（中文汉化版）— 实时 token 用量、提示/输出/缓存统计与完整分析，支持中英切换与用量导出。",
+	"version": "1.11.3",
+	"publisher": "WuJunFeng",
+	"icon": "images/icon.png",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/pvjagtap/github-copilot-usage-dashboard"
+	},
+	"homepage": "https://github.com/pvjagtap/github-copilot-usage-dashboard#readme",
+	"bugs": {
+		"url": "https://github.com/pvjagtap/github-copilot-usage-dashboard/issues"
+	},
+	"keywords": [
+		"copilot",
+		"token",
+		"usage",
+		"dashboard",
+		"analytics",
+		"opentelemetry",
+		"github"
+	],
+	"engines": {
+		"vscode": "^1.85.0"
+	},
+	"categories": [
+		"Other",
+		"Visualization"
+	],
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "copilotUsage.openDashboard",
+				"title": "Copilot Usage: Open Dashboard"
+			},
+			{
+				"command": "copilotUsage.refresh",
+				"title": "Copilot Usage: Refresh Stats"
+			},
+			{
+				"command": "copilotUsage.exportStats",
+				"title": "Copilot Usage: Export Stats (导出统计)"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.snooze",
+				"title": "Copilot Usage: Snooze Daily Limit Alert"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.resume",
+				"title": "Copilot Usage: Resume Copilot (Override Daily Limit)"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.reset",
+				"title": "Copilot Usage: Reset Today's Daily-Limit Counter"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.showShield",
+				"title": "Copilot Usage: Show Daily Limit Shield"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.installHooks",
+				"title": "Copilot Usage: Install Agent Hooks (CLI / Custom Agents / Cloud)"
+			},
+			{
+				"command": "copilotUsage.dailyLimit.uninstallHooks",
+				"title": "Copilot Usage: Uninstall Agent Hooks"
+			},
+			{
+				"command": "copilotUsage.aic.detectPlan",
+				"title": "Copilot Usage: Detect My Copilot Plan"
+			},
+			{
+				"command": "copilotUsage.cacheTtl.toggle",
+				"title": "Copilot Usage: Toggle Prompt-Cache TTL Tracking"
+			},
+			{
+				"command": "copilotUsage.sidebar.refresh",
+				"title": "Refresh",
+				"category": "Copilot Usage",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "copilotUsage.sidebar.openDashboard",
+				"title": "Open Full Dashboard",
+				"category": "Copilot Usage",
+				"icon": "$(link-external)"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "copilotUsage",
+					"title": "Copilot Usage",
+					"icon": "images/sidebar-icon.svg"
+				}
+			]
+		},
+		"views": {
+			"copilotUsage": [
+				{
+					"id": "copilotUsage.panel",
+					"name": "Usage",
+					"type": "webview",
+					"icon": "images/sidebar-icon.svg",
+					"contextualTitle": "Copilot Usage"
+				}
+			]
+		},
+		"menus": {
+			"view/title": [
+				{
+					"command": "copilotUsage.sidebar.refresh",
+					"when": "view == copilotUsage.panel",
+					"group": "navigation@1"
+				},
+				{
+					"command": "copilotUsage.sidebar.openDashboard",
+					"when": "view == copilotUsage.panel",
+					"group": "navigation@2"
+				}
+			]
+		},
+		"configuration": [
+			{
+				"title": "Copilot Usage — General",
+				"properties": {
+					"copilotUsage.workspaceStoragePath": {
+						"type": "string",
+						"default": "",
+						"description": "Optional absolute path to a VS Code workspaceStorage directory. When empty, the extension auto-detects across Linux (~/.config/Code), macOS (~/Library/Application Support/Code), Windows (%APPDATA%/Code), dev containers / Remote-SSH / WSL (~/.vscode-server), and VS Code Insiders. Set this if you run a portable install, a fork, or need to point at a specific install."
+					},
+					"copilotUsage.cli.enabled": {
+						"type": "boolean",
+						"default": true,
+						"description": "Include GitHub Copilot CLI (@github/copilot) session usage in the dashboard. When on, the extension scans ~/.copilot/session-state/ (overridable below) for live prompt activity and session.shutdown billing ledgers. Disable to exclude CLI usage entirely."
+					},
+					"copilotUsage.cli.homePath": {
+						"type": "string",
+						"default": "",
+						"description": "Optional absolute path to the GitHub Copilot CLI home directory (where session-state/ lives). When empty, resolves to the COPILOT_HOME env var, then falls back to ~/.copilot. Set this if you run the CLI from a portable install or a non-standard location."
+					}
+				}
+			},
+			{
+				"title": "Copilot Usage — AI Credits (AIC)",
+				"properties": {
+					"copilotUsage.aic.plan": {
+						"type": "string",
+						"default": "business",
+						"enum": [
+							"free",
+							"pro",
+							"pro_plus",
+							"max",
+							"business",
+							"business_promo",
+							"enterprise",
+							"enterprise_promo"
+						],
+						"enumDescriptions": [
+							"Free — 2,000 completions/month (no published credit allowance)",
+							"Pro — $10/month (1,500 credits: 1,000 base + 500 flex)",
+							"Pro+ — $39/month (7,000 credits: 3,900 base + 3,100 flex)",
+							"Max — $100/month (20,000 credits: 10,000 base + 10,000 flex)",
+							"Business — $19/user/month (1,900 credits/user, pooled). Promo applies to business_promo.",
+							"Business Promo — June–Sept 2026 (3,000 credits/user, pooled). Existing Business customers only.",
+							"Enterprise — $39/user/month (3,900 credits/user, pooled). Promo applies to enterprise_promo.",
+							"Enterprise Promo — June–Sept 2026 (7,000 credits/user, pooled). Existing Enterprise customers only."
+						],
+						"description": "Your GitHub Copilot plan. Determines included monthly AI credits. Promotional uplift (June–Sept 2026) applies only to existing Business/Enterprise customers, not to Free/Pro/Pro+/Max."
+					},
+					"copilotUsage.aic.autoDetectPlan": {
+						"type": "boolean",
+						"default": true,
+						"description": "On first activation, silently detect your GitHub Copilot plan via your existing GitHub session (no extra sign-in required) and write it to copilotUsage.aic.plan. Falls back to a one-time picker if detection fails. Set false to keep the manually configured plan only."
+					},
+					"copilotUsage.aic.billingCycleStartDay": {
+						"type": "number",
+						"default": 1,
+						"minimum": 1,
+						"maximum": 28,
+						"description": "Day of month when your billing cycle starts (1-28)."
+					},
+					"copilotUsage.aic.monthlyCreditsIncluded": {
+						"type": "number",
+						"default": 1900,
+						"description": "Override monthly included credits per user (set 0 for unlimited). Defaults based on plan selection."
+					},
+					"copilotUsage.aic.overageCostPerCredit": {
+						"type": "number",
+						"default": 0.01,
+						"description": "Cost in USD per AI credit overage. Official rate: 1 credit = $0.01 USD."
+					},
+					"copilotUsage.aic.customModelCosts": {
+						"type": "array",
+						"default": [],
+						"description": "Custom per-model credit rates (per 1M tokens). Overrides defaults for specified models.",
+						"items": {
+							"type": "object",
+							"properties": {
+								"model": {
+									"type": "string",
+									"description": "Model identifier (e.g., 'claude-opus-4.6')"
+								},
+								"inputCreditsPerMillion": {
+									"type": "number",
+									"description": "Credits per 1M input tokens"
+								},
+								"outputCreditsPerMillion": {
+									"type": "number",
+									"description": "Credits per 1M output tokens"
+								},
+								"cachedInputCreditsPerMillion": {
+									"type": "number",
+									"description": "Credits per 1M cached input tokens (read)"
+								},
+								"cacheWriteCreditsPerMillion": {
+									"type": "number",
+									"description": "Credits per 1M cache write tokens (Anthropic only, 0 for others)"
+								},
+								"tier": {
+									"type": "string",
+									"enum": [
+										"base",
+										"premium",
+										"custom"
+									],
+									"description": "Cost tier"
+								}
+							},
+							"required": [
+								"model",
+								"inputCreditsPerMillion",
+								"outputCreditsPerMillion",
+								"cachedInputCreditsPerMillion",
+								"cacheWriteCreditsPerMillion",
+								"tier"
+							]
+						}
+					},
+					"copilotUsage.aic.includeOnlyBilledModels": {
+						"type": "boolean",
+						"default": true,
+						"description": "When true (default), only models that GitHub Copilot actually bills in AI Credits (Claude/GPT/Gemini families in the rate table) count toward the headline total, budget bar, and projected spend. Local Ollama, LM Studio, BYOK keys, and unrecognised models are still tracked and shown in a separate 'Non-billable models (informational)' panel for capacity planning, but excluded from billed-cost math. Disable to restore the legacy behaviour where every chat call inflates AIC totals. (Issue #5)"
+					},
+					"copilotUsage.aic.excludeModels": {
+						"type": "array",
+						"default": [],
+						"description": "Model name substrings to force-EXCLUDE from billable totals, even if they otherwise match the GHC rate table. Use this to mark a specific alias (e.g. 'raptor-mini-internal') as informational. Matching is case-insensitive substring. (Issue #5)",
+						"items": {
+							"type": "string"
+						}
+					},
+					"copilotUsage.aic.extraBilledModels": {
+						"type": "array",
+						"default": [],
+						"description": "Model name substrings to force-INCLUDE as billable even when they don't appear in the built-in rate table. Escape hatch for preview models that arrive before the table is updated. Matching is case-insensitive substring. (Issue #5)",
+						"items": {
+							"type": "string"
+						}
+					},
+					"copilotUsage.aic.useOnlineModelCatalog": {
+						"type": "boolean",
+						"default": true,
+						"description": "When true (default), fetch the authoritative GitHub Copilot model catalog once per 24h (CDN known-models manifest + Copilot CAPI /models) and use it as the primary billable-vs-non-billable classifier. The CDN manifest is the same URL the official Copilot Chat extension reads on startup, and the CAPI response includes the canonical billing.multiplier field. Lets the dashboard recognise new preview models (e.g. Claude Fable 5) without an extension update, and correctly excludes BYOK model IDs that happen to substring-match a known family. Disable to operate fully offline using only the built-in rate table. (Issue #5)"
+					}
+				}
+			},
+			{
+				"title": "Copilot Usage — BYOK Provider Pricing",
+				"properties": {
+					"copilotUsage.byokPricing": {
+						"type": "object",
+						"default": {},
+						"markdownDescription": "What your OWN provider charges for BYOK traffic (Azure AI Foundry, Anthropic direct, OpenAI, …). GitHub does not bill these requests, so they are otherwise shown only as Copilot-equivalent credits — a number that appears on no invoice you receive.\n\nBuilt-in defaults cover Anthropic-family models at published Claude API rates (Opus $5/$25 per Mtok with $0.50 cache reads; Sonnet $2/$10 with $0.20), which Anthropic documents as also being the Microsoft Foundry rate card. Provider dollars are always reported separately and are **never** added to AI credits.",
+						"properties": {
+							"cacheWriteRatio": {
+								"type": "number",
+								"default": 0,
+								"minimum": 0,
+								"maximum": 1,
+								"description": "Fraction of cached tokens to price as cache WRITES (1.25x input) rather than cache READS (0.1x input). VS Code records a single 'cached' figure and does not distinguish the two, so 0 (all reads) is the default and makes the reported cost a lower bound. Raise it if your workload writes cache entries more often than it reads them."
+							},
+							"providers": {
+								"type": "array",
+								"default": [],
+								"description": "Per-provider rate overrides, merged over the built-in defaults by 'match'. Use this when published prices change or when you use a provider with no built-in rates.",
+								"items": {
+									"type": "object",
+									"properties": {
+										"match": {
+											"type": "string",
+											"description": "Case-insensitive substring matched against the provider label recorded for the request (e.g. 'Azure Founday Anthropic')."
+										},
+										"regionMultiplier": {
+											"type": "number",
+											"default": 1,
+											"description": "Flat multiplier on every rate. Azure US Data Zone Standard deployments bill 1.1x; Global Standard bills 1.0x."
+										},
+										"models": {
+											"type": "array",
+											"description": "Per-model USD rates per million tokens.",
+											"items": {
+												"type": "object",
+												"properties": {
+													"match": {
+														"type": "string",
+														"description": "Case-insensitive substring matched against the model id (e.g. 'opus')."
+													},
+													"inputPerMillion": {
+														"type": "number"
+													},
+													"outputPerMillion": {
+														"type": "number"
+													},
+													"cachedReadPerMillion": {
+														"type": "number"
+													},
+													"cacheWritePerMillion": {
+														"type": "number"
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			{
+				"title": "Copilot Usage — Daily Limit Guard",
+				"properties": {
+					"copilotUsage.dailyLimit.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable the daily AI Credits limit guard with visual indicator + optional Copilot pause. Off by default — opt in to activate."
+					},
+					"copilotUsage.dailyLimit.credits": {
+						"type": "number",
+						"default": 100,
+						"minimum": 1,
+						"description": "Maximum AI Credits (AIC) you allow yourself to spend per day. 1 AIC ≈ $0.01."
+					},
+					"copilotUsage.dailyLimit.dollars": {
+						"type": "number",
+						"default": 0,
+						"minimum": 0,
+						"description": "Optional: set a daily dollar limit instead of credits. If > 0, this overrides 'credits' (converted via copilotUsage.aic.overageCostPerCredit, default $0.01/credit). Set to 0 to use the credits-based limit."
+					},
+					"copilotUsage.dailyLimit.warnAtPercent": {
+						"type": "number",
+						"default": 75,
+						"minimum": 10,
+						"maximum": 99,
+						"description": "Percent of daily limit at which the first warning appears (status bar turns amber)."
+					},
+					"copilotUsage.dailyLimit.braceAtPercent": {
+						"type": "number",
+						"default": 90,
+						"minimum": 50,
+						"maximum": 99,
+						"description": "Percent of daily limit at which the floating corner card appears (orange)."
+					},
+					"copilotUsage.dailyLimit.resetHour": {
+						"type": "number",
+						"default": 0,
+						"minimum": 0,
+						"maximum": 23,
+						"description": "Local hour at which the daily counter resets (0 = midnight)."
+					},
+					"copilotUsage.dailyLimit.enforcement": {
+						"type": "string",
+						"default": "pause",
+						"enum": [
+							"soft",
+							"pause",
+							"strict"
+						],
+						"enumDescriptions": [
+							"Soft — Show overlay + nag modal only. Copilot keeps working.",
+							"Pause — Turn off Copilot completions and show modal block for chat (no reload).",
+							"Strict — Disable Copilot + Copilot Chat extensions (requires window reload)."
+						],
+						"description": "What to do when the daily limit is reached."
+					},
+					"copilotUsage.dailyLimit.snoozeMinutes": {
+						"type": "number",
+						"default": 10,
+						"minimum": 1,
+						"maximum": 240,
+						"description": "How long the 'Snooze' button silences the limit overlay."
+					},
+					"copilotUsage.dailyLimit.playSound": {
+						"type": "boolean",
+						"default": false,
+						"description": "Play a soft chime when the daily limit is first reached."
+					},
+					"copilotUsage.dailyLimit.installAgentHooks": {
+						"type": "boolean",
+						"default": true,
+						"description": "Install global GitHub Copilot lifecycle hooks (~/.copilot/hooks) so the daily limit also denies tool calls in Copilot CLI, local custom agents, and the cloud agent. Does not affect plain Copilot Chat Ask mode (use 'strict' enforcement for that). Disable to remove hooks."
+					}
+				}
+			},
+			{
+				"title": "Copilot Usage — Prompt Cache TTL",
+				"properties": {
+					"copilotUsage.cacheTtl.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Track how long each session's prompt cache stays warm and show a countdown. Sending your next turn before the cache expires re-reads the cached prefix at a fraction of the input rate. Off by default — opt in to activate."
+					},
+					"copilotUsage.cacheTtl.ttl": {
+						"type": "object",
+						"markdownDescription": "Per-provider cache lifetimes, in seconds. Each entry is `{ timerValue, warnAt, alertAt }` — `timerValue` is the assumed full cache lifetime, `warnAt` is the yellow threshold and `alertAt` is the red one. **These are approximate**: only Anthropic documents a prompt-cache TTL (~5 min), so treat the rest as tunable estimates rather than billing guarantees.",
+						"default": {
+							"anthropic": {
+								"timerValue": 300,
+								"warnAt": 120,
+								"alertAt": 30
+							},
+							"openai": {
+								"timerValue": 300,
+								"warnAt": 120,
+								"alertAt": 30
+							},
+							"google": {
+								"timerValue": 300,
+								"warnAt": 120,
+								"alertAt": 30
+							},
+							"xai": {
+								"timerValue": 300,
+								"warnAt": 120,
+								"alertAt": 30
+							},
+							"default": {
+								"timerValue": 300,
+								"warnAt": 120,
+								"alertAt": 30
+							}
+						},
+						"additionalProperties": {
+							"type": "object",
+							"properties": {
+								"timerValue": {
+									"type": "integer",
+									"minimum": 1
+								},
+								"warnAt": {
+									"type": "integer",
+									"minimum": 1
+								},
+								"alertAt": {
+									"type": "integer",
+									"minimum": 1
+								}
+							}
+						}
+					},
+					"copilotUsage.cacheTtl.showInStatusBar": {
+						"type": "boolean",
+						"default": true,
+						"description": "Append the most urgent session's cache countdown to the status bar. Turn off to keep the countdown in the sidebar and dashboard only."
+					},
+					"copilotUsage.cacheTtl.soundEnabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Play a sound when a session's prompt cache is about to expire (enters the red state). Off by default."
+					},
+					"copilotUsage.cacheTtl.soundPath": {
+						"type": "string",
+						"default": "",
+						"description": "Absolute path to a sound file for the expiry alert (.wav, .mp3, .ogg, .aiff, .m4a). Leave empty to use the bundled chime. Invalid or missing paths silently fall back to the bundled file."
+					},
+					"copilotUsage.cacheTtl.alertRepeat": {
+						"type": "integer",
+						"default": 1,
+						"minimum": 1,
+						"maximum": 10,
+						"description": "How many times to play the expiry sound. Repeats play one after another."
+					},
+					"copilotUsage.cacheTtl.notifyOnRed": {
+						"type": "boolean",
+						"default": false,
+						"description": "Show a warning notification the first time a session's cache is about to expire. Off by default — the status-bar countdown already signals it."
+					},
+					"copilotUsage.cacheTtl.workingGraceSeconds": {
+						"type": "integer",
+						"default": 5,
+						"minimum": 0,
+						"maximum": 300,
+						"description": "For sessions with no turn markers (e.g. Copilot CLI), how long after a request the session is still treated as actively generating (HOT)."
+					},
+					"copilotUsage.cacheTtl.expiredGraceSeconds": {
+						"type": "integer",
+						"default": 30,
+						"minimum": 0,
+						"maximum": 3600,
+						"description": "How long an expired (COLD) session stays listed before it is dropped."
+					},
+					"copilotUsage.cacheTtl.maxSessions": {
+						"type": "integer",
+						"default": 20,
+						"minimum": 1,
+						"maximum": 100,
+						"description": "Maximum number of sessions listed in the status-bar tooltip's Cache reuse block."
+					}
+				}
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "echo done",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"package": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && npm run compile && vsce package --out dist/"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"@types/vscode": "^1.85.0",
+		"@typescript-eslint/eslint-plugin": "^8.58.1",
+		"@typescript-eslint/parser": "^8.58.1",
+		"@vscode/vsce": "^3.9.1",
+		"eslint": "^9.39.4",
+		"typescript": "^5.3.0"
+	}
+}

@@ -1,0 +1,12 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+.gitignore
+tsconfig.json
+eslint.config.*
+ARCHITECTURE.md
+repack-zh.ps1
+set-publisher.js
+*.vsix
+*.bak

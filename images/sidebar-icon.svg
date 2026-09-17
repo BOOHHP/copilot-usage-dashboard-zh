@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+  <!-- Outer rounded square representing the dashboard frame -->
+  <path d="M3.5 4.5h17a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zm.5 2v11h16v-11h-16z"/>
+  <!-- Three bars: low / mid / tall (token-usage motif) -->
+  <rect x="5.5" y="13" width="2.5" height="3" rx="0.5"/>
+  <rect x="9" y="10" width="2.5" height="6" rx="0.5"/>
+  <rect x="12.5" y="7" width="2.5" height="9" rx="0.5"/>
+  <!-- Live dot in top-right corner -->
+  <circle cx="17.5" cy="9" r="1.4"/>
+</svg>
