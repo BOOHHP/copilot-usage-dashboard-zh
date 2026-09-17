@@ -8,11 +8,11 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/pvjagtap/github-copilot-usage-dashboard"
+		"url": "https://github.com/BOOHHP/copilot-usage-dashboard-zh.git"
 	},
-	"homepage": "https://github.com/pvjagtap/github-copilot-usage-dashboard#readme",
+	"homepage": "https://github.com/BOOHHP/copilot-usage-dashboard-zh#readme",
 	"bugs": {
-		"url": "https://github.com/pvjagtap/github-copilot-usage-dashboard/issues"
+		"url": "https://github.com/BOOHHP/copilot-usage-dashboard-zh/issues"
 	},
 	"keywords": [
 		"copilot",

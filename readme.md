@@ -10,7 +10,7 @@
 > 汉化与新增功能均为增量实现，不改动原版数据逻辑。感谢原作者的开源贡献。
 
 <p align="center">
-  <img src="https://github.com/pvjagtap/github-copilot-usage-dashboard/raw/HEAD/images/Dashboard_With_AIC.png" alt="Copilot Usage Dashboard">
+  <img src="images/Dashboard_With_AIC.png" alt="Copilot Usage Dashboard">
 </p>
 
 A VS Code extension that shows token usage, AI Credits, and cost across GitHub Copilot Chat, [Oh My Pi](https://github.com/can1357/oh-my-pi), and [Pi](https://github.com/earendil-works/pi) sessions. Fully localized to Simplified Chinese with an in-app EN/中文 toggle.
@@ -85,10 +85,10 @@ Common settings:
 | `copilotUsage.byokPricing`              | built-ins  | Your own provider's per-token rates    |
 | `copilotUsage.workspaceStoragePath`     | auto       | Override VS Code workspaceStorage root |
 
-Full configuration reference, data sources, and internals: [ARCHITECTURE.md](https://github.com/pvjagtap/github-copilot-usage-dashboard/blob/HEAD/ARCHITECTURE.md)
+Full configuration reference, data sources, and internals: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## License
 
 MIT. Portions of the prompt-cache TTL feature are derived from
 [cache-timer](https://github.com/sukumarp2022/cache-timer) (MIT © 2026
-sukumarp2022) — see [NOTICE](https://github.com/pvjagtap/github-copilot-usage-dashboard/blob/HEAD/NOTICE).
+sukumarp2022) — see [NOTICE](NOTICE).
