@@ -8,5 +8,6 @@ eslint.config.*
 ARCHITECTURE.md
 repack-zh.ps1
 set-publisher.js
+add-changelog.js
 *.vsix
 *.bak

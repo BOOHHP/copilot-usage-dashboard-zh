@@ -2,7 +2,7 @@
 	"name": "copilot-usage-dashboard-zh",
 	"displayName": "Copilot Usage Dashboard 中文版",
 	"description": "GitHub Copilot 用量仪表盘（中文汉化版）— 实时 token 用量、提示/输出/缓存统计与完整分析，支持中英切换与用量导出。",
-	"version": "1.11.3",
+	"version": "1.11.4",
 	"publisher": "WuJunFeng",
 	"icon": "images/icon.png",
 	"license": "MIT",

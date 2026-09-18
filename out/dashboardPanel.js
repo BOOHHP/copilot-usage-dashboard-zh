@@ -49,6 +49,9 @@ class DashboardPanel {
     static onOpenFile;
     static onExportStats;
     static onLangChange;
+    /** Persisted across panel re-opens (backed by globalState via onUiStateChange). */
+    static uiState = null;
+    static onUiStateChange;
     panel;
     disposed = false;
     static show(extensionUri, data) {
@@ -89,6 +92,10 @@ class DashboardPanel {
             else if (msg.type === "langChange" && DashboardPanel.onLangChange) {
                 DashboardPanel.onLangChange(msg.lang);
             }
+            else if (msg.type === "uiState") {
+                DashboardPanel.uiState = msg.state;
+                if (DashboardPanel.onUiStateChange) DashboardPanel.onUiStateChange(msg.state);
+            }
         });
         this.panel.webview.html = this.buildHtml(data);
     }
@@ -101,6 +108,7 @@ class DashboardPanel {
     buildHtml(data) {
         const jsonData = JSON.stringify(data);
         const aicStartJson = JSON.stringify(dashboardData_1.AIC_EFFECTIVE_DATE);
+        const initialStateJson = JSON.stringify(DashboardPanel.uiState || null);
         return /*html*/ `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -427,7 +435,10 @@ if (typeof Chart !== 'undefined' && Chart.defaults) {
   Chart.defaults.font.family = "'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
   Chart.defaults.font.weight = '500';
 }
-const _saved = vscode.getState() || {};
+// Host-persisted state (globalState) wins over the per-webview getState, so
+// filters + language survive panel close/re-open. Falls back to getState, then defaults.
+const INITIAL_STATE = ${initialStateJson} || vscode.getState() || {};
+const _saved = INITIAL_STATE;
 let selectedRange = _saved.selectedRange || 'tm';
 let selectedModels = _saved.selectedModels ? new Set(_saved.selectedModels.filter(m => DATA.allModels.includes(m))) : new Set(DATA.allModels);
 let selectedRefresh = typeof _saved.selectedRefresh === 'number' ? _saved.selectedRefresh : 120;
@@ -484,7 +495,7 @@ const I18N = {
   'HOT':'热','COLD':'冷',
   'Refresh now':'立即刷新','with':'，共','tokens (':' token（','% of period). Daily average: ':'% 占比）。日均：','tokens across ':' token，分布在 ','days.':' 天。','averaging ':'，平均 ','turns/hour. ':' 轮/小时。','% of activity falls within ±3h of peak.':'% 的活动集中在峰值 ±3 小时内。',
   'Usage-Based Billing':'按用量计费','plan allowance':'套餐额度','above allowance':'超出额度',
-  'shown':' 个','credits':'积分','Export':'导出','Export stats (Markdown/JSON)':'导出统计（Markdown/JSON）'
+  'shown':' 个','credits':'积分','Export':'导出','Export stats (Markdown/JSON)':'导出统计（Markdown/JSON）','Reset':'重置','Reset view (restore default filters)':'重置视图（恢复默认筛选，保留语言）'
 };
 const I18N_SUB = [
   ['Updated: ','更新于 '],['(auto-refresh off)','（自动刷新已关闭）'],
@@ -579,7 +590,13 @@ function applyStaticI18n(){
 applyStaticI18n();
 let renderPending = false;
 let renderWhenVisible = false;
-function _saveState() { vscode.setState({ selectedRange, selectedRefresh, selectedModels: Array.from(selectedModels), selectedTz }); }
+function _saveState() {
+  const st = { selectedRange, selectedRefresh, selectedModels: Array.from(selectedModels), selectedTz, lang: LANG };
+  vscode.setState(st);
+  // Persist to the extension host (globalState) so filters + language survive
+  // panel close/re-open — vscode.getState() is per-webview and resets on rebuild.
+  vscode.postMessage({ type: 'uiState', state: st });
+}
 
 // Single per-day AIC credit map used by both the hero KPIs and the AIC
 // section, so the "AI Credits Spent" tile and the "Total Credits" card can
@@ -750,6 +767,7 @@ function buildFilterBar() {
   h += '<button class="btn-refresh" type="button" onclick="manualRefresh(this)" title="'+T('Refresh now')+'">&#x21bb;</button>';
   h += '<button class="btn-sm" type="button" onclick="toggleLang()" title="切换语言 / Switch language" style="font-weight:700">'+(LANG==='zh'?'EN':'中文')+'</button>';
   h += '<button class="btn-sm" type="button" onclick="doExport()" title="'+T('Export stats (Markdown/JSON)')+'">⤓ '+T('Export')+'</button>';
+  h += '<button class="btn-sm" type="button" onclick="resetView()" title="'+T('Reset view (restore default filters)')+'">↺ '+T('Reset')+'</button>';
 
   document.getElementById('filter-bar').innerHTML = h;
 }
@@ -818,6 +836,18 @@ function setRefreshDD(secs) {
 }
 function manualRefresh(btn) { vscode.postMessage({type:'manualRefresh'}); }
 function doExport() { vscode.postMessage({type:'exportStats'}); }
+// Explicit "reset view" — restores default range/models/refresh/tz. Language is
+// kept (the user chose it deliberately); use the EN/中文 button to change it.
+function resetView(){
+  selectedRange = 'tm';
+  selectedModels = new Set(DATA.allModels);
+  selectedRefresh = 120;
+  selectedTz = 'local';
+  _saveState();
+  buildFilterBar();
+  queueRender();
+  vscode.postMessage({type:'refreshRate',intervalMs:120000});
+}
 
 function queueRender() {
   if (document.hidden) {
@@ -2124,10 +2154,11 @@ window.addEventListener('message', e => {
   const msg = e.data;
   if (msg.type === 'updateData' && msg.data) {
     DATA = msg.data;
-    // Re-check model set: keep selected, add new models
+    // Prune models that no longer exist. Do NOT re-add deselected models —
+    // that is what made every refresh wipe the user's model filter. New
+    // models surface unchecked; "All" or the reset button reveals them.
     const newModels = new Set(DATA.allModels);
     selectedModels.forEach(m => { if (!newModels.has(m)) selectedModels.delete(m); });
-    DATA.allModels.forEach(m => { if (!selectedModels.has(m)) selectedModels.add(m); });
     buildFilterBar();
     queueRender();
   }

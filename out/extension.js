@@ -819,6 +819,16 @@ async function activate(context) {
         void context.globalState.update("copilotUsage.uiLang", lang);
         statusBar?.setLang(lang);
     };
+    // Load persisted UI state (range / models / refresh / tz / lang) so a
+    // re-opened dashboard keeps the user's filters and language instead of
+    // snapping back to defaults. Set before any panel is built.
+    dashboardPanel_1.DashboardPanel.uiState = context.globalState.get("copilotUsage.uiState") ?? null;
+    dashboardPanel_1.DashboardPanel.onUiStateChange = (state) => {
+        void context.globalState.update("copilotUsage.uiState", state);
+        if (state && state.lang) {
+            void context.globalState.update("copilotUsage.uiLang", state.lang);
+        }
+    };
     // Handle file open requests from dashboard webview
     dashboardPanel_1.DashboardPanel.onOpenFile = (filePath) => {
         const uri = vscode.Uri.file(filePath);
