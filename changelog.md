@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- 模型筛选面板按厂商来源分组：Copilot / OpenRouter / n1n.ai 等各自成组，组头带全选开关与 n/m 计数，未归属模型归入「其他」。
+- 模型筛选面板按厂商来源分组：Copilot / OpenRouter / n1n.ai 等各自成组，组头带全选开关与 n/m 计数，未归属模型归入「其他」。中转厂商（如 OpenRouter）内的不同系列（deepseek/qwen/z-ai…）作为组内子分组再细分，系列子组头同样支持全选与三态显示。
 
 ## [1.11.5-zh] - 2026-09-18 (Chinese localization fork)
 

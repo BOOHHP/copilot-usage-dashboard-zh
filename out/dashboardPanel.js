@@ -197,6 +197,10 @@ h1 svg { width: 22px; height: 22px; }
 .model-dd-group-head:hover { background: var(--card) !important; }
 .model-dd-count { margin-left: auto; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .model-dd-item { padding-left: 20px !important; }
+/* zh fork: series sub-group heads inside relay vendor groups */
+.model-dd-series-head { display: flex !important; align-items: center; gap: 6px; padding: 3px 6px 2px 14px !important; font-size: 11px !important; color: var(--muted); background: transparent !important; cursor: pointer; }
+.model-dd-series-head em { font-style: normal; font-weight: 600; color: var(--fg); }
+.model-dd-item-series { padding-left: 30px !important; }
 .btn-refresh { font-size: 13px; padding: 4px 9px; background: var(--card); color: var(--green); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; line-height: 1; }
 .btn-refresh:hover { background: var(--border); border-color: var(--green); }
 .btn-refresh.spinning { animation: spin 0.8s linear; pointer-events: none; }
@@ -730,13 +734,19 @@ function buildFilterBar() {
 
   // zh fork: group models by source vendor (Copilot / OpenRouter / n1n.ai /
   // …), with a per-group toggle. Unattributed models land in "Other".
+  // Relay groups (e.g. OpenRouter) carry per-model SERIES labels (from
+  // "Vendor/series" in the debug logs) — rendered as sub-group rows inside
+  // the vendor group instead of separate top-level groups.
   const VENDOR = DATA.modelVendors || {};
+  const SERIES = DATA.modelSeries || {};
   const groups = new Map();
   DATA.allModels.forEach(m => {
     const g = VENDOR[m] || T('Other');
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(m);
   });
+  // expose SERIES to the toggle/sync functions (they run outside this closure scope)
+  window.__modelSeries = SERIES;
   // Copilot first, then named relays alphabetically, "Other" last.
   const groupOrder = Array.from(groups.keys()).sort((a, b) => {
     const rank = k => k === 'Copilot' ? 0 : k === T('Other') ? 2 : 1;
@@ -749,10 +759,30 @@ function buildFilterBar() {
     modelOpts += '<div class="model-dd-group" data-group="'+esc(g)+'">'
       + '<label class="model-dd-group-head"><input type="checkbox" data-vendor-group="'+esc(g)+'"'+(allOn?' checked':'')+' onchange="toggleVendorGroup(this)">'
       + '<strong>'+esc(g)+'</strong><span class="model-dd-count">'+items.filter(m=>selectedModels.has(m)).length+'/'+items.length+'</span></label>';
-    items.forEach(m => {
-      const chk = selectedModels.has(m) ? ' checked' : '';
-      modelOpts += '<label class="model-dd-item"><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
-    });
+    // Sub-groups: only when the group has series labels (relay vendors).
+    const seriesSet = Array.from(new Set(items.map(m => SERIES[m]).filter(Boolean)));
+    if (seriesSet.length > 0) {
+      seriesSet.sort().forEach(series => {
+        const sItems = items.filter(m => SERIES[m] === series);
+        const sAllOn = sItems.every(m => selectedModels.has(m));
+        modelOpts += '<label class="model-dd-series-head"><input type="checkbox" data-vendor-series="'+esc(series)+'" data-parent-group="'+esc(g)+'"'+(sAllOn?' checked':'')+' onchange="toggleVendorSeries(this)">'
+          + '<em>'+esc(series)+'</em><span class="model-dd-count">'+sItems.filter(m=>selectedModels.has(m)).length+'/'+sItems.length+'</span></label>';
+        sItems.forEach(m => {
+          const chk = selectedModels.has(m) ? ' checked' : '';
+          modelOpts += '<label class="model-dd-item model-dd-item-series"><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
+        });
+      });
+      // models without a series label, if any, go last in this group
+      items.filter(m => !SERIES[m]).forEach(m => {
+        const chk = selectedModels.has(m) ? ' checked' : '';
+        modelOpts += '<label class="model-dd-item"><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
+      });
+    } else {
+      items.forEach(m => {
+        const chk = selectedModels.has(m) ? ' checked' : '';
+        modelOpts += '<label class="model-dd-item"><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
+      });
+    }
     modelOpts += '</div>';
   });
 
@@ -840,8 +870,25 @@ function toggleVendorGroup(cb) {
   });
   _saveState(); updateModelDDLabel(); queueRender();
 }
+// zh fork: per-series toggle inside a relay group (e.g. OpenRouter/deepseek).
+function toggleVendorSeries(cb) {
+  const series = cb.dataset.vendorSeries;
+  const SERIES = window.__modelSeries || {};
+  // toggle every model whose series matches
+  document.querySelectorAll('#model-dd input[type="checkbox"][data-model]').forEach(c => {
+    if (SERIES[c.dataset.model] === series) {
+      c.checked = cb.checked;
+      if (cb.checked) selectedModels.add(c.dataset.model);
+      else selectedModels.delete(c.dataset.model);
+    }
+  });
+  syncVendorGroupHeads();
+  _saveState(); updateModelDDLabel(); queueRender();
+}
 // Keep each group header checkbox + count in sync with its member checkboxes.
+// Also keeps series-head checkboxes three-state within their vendor group.
 function syncVendorGroupHeads() {
+  const SERIES = window.__modelSeries || {};
   document.querySelectorAll('.model-dd-group').forEach(g => {
     const items = Array.from(g.querySelectorAll('input[type="checkbox"][data-model]'));
     const head = g.querySelector('input[data-vendor-group]');
@@ -851,6 +898,20 @@ function syncVendorGroupHeads() {
     head.indeterminate = on > 0 && on < items.length;
     const cnt = g.querySelector('.model-dd-count');
     if (cnt) cnt.textContent = on + '/' + items.length;
+    // series heads: three-state over the models of that series inside this group
+    const seriesOn = {};
+    items.forEach(c => {
+      const s = SERIES[c.dataset.model];
+      if (s) { seriesOn[s] = seriesOn[s] || { on: 0, total: 0 }; seriesOn[s].total++; if (c.checked) seriesOn[s].on++; }
+    });
+    g.querySelectorAll('input[data-vendor-series]').forEach(sh => {
+      const st = seriesOn[sh.dataset.vendorSeries];
+      if (!st) return;
+      sh.checked = st.on === st.total;
+      sh.indeterminate = st.on > 0 && st.on < st.total;
+      const sc = sh.parentNode.querySelector('.model-dd-count');
+      if (sc) sc.textContent = st.on + '/' + st.total;
+    });
   });
 }
 function pickAll() {

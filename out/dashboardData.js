@@ -335,12 +335,16 @@ function computeAllModels(turns) {
         .sort((a, b) => b[1] - a[1])
         .map(e => e[0]);
 }
-// zh fork (1.11.6): per-model source label (Copilot vs BYOK relays like
+// zh fork (1.11.5): per-model source label (Copilot vs BYOK relays like
 // OpenRouter / n1n.ai) so the filter panel can group models by vendor.
 // Reuses the same precedence as `vendorByModel`: a model seen through more
 // than one vendor stays unattributed (undefined) — the catalog decides then.
+// A relay label like "OpenRouter/deepseek" is split: the part before the
+// slash is the VENDOR GROUP (all OpenRouter models share one group), the
+// part after is the SERIES (rendered as sub-groups inside that group).
 function computeModelVendors(turns) {
     const byModel = new Map();
+    const seriesByModel = new Map();
     for (const t of turns) {
         if (!t.modelVendor) {
             continue;
@@ -350,15 +354,20 @@ function computeModelVendors(turns) {
         if (!label) {
             continue;
         }
+        const slash = label.indexOf("/");
+        const group = slash > 0 ? label.slice(0, slash) : label;
+        const series = slash > 0 ? label.slice(slash + 1) : undefined;
         const prev = byModel.get(m);
         if (prev === undefined) {
-            byModel.set(m, label);
+            byModel.set(m, group);
+            seriesByModel.set(m, series);
         }
-        else if (prev !== label) {
+        else if (prev !== group) {
             byModel.set(m, undefined); // multi-source: no single vendor
+            seriesByModel.set(m, undefined);
         }
     }
-    return byModel;
+    return { byModel, seriesByModel };
 }
 // ─── Build Dashboard Data ─────────────────────────────────────
 // NOTE: a per-activation monotonic ratchet on `liveOtel.sessionAIC` was
@@ -381,8 +390,7 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     const config = aicConfig ?? aicCredits_1.DEFAULT_AIC_CONFIG;
     const calculator = (0, aicCredits_1.createCalculatorFromConfig)(config);
     const allModels = computeAllModels(scan.turns);
-    const modelVendors = computeModelVendors(scan.turns);
-    const dailyByModel = computeDaily(scan.turns);
+    const modelVendors = computeModelVendors(scan.turns);    const dailyByModel = computeDaily(scan.turns);
     const sessionsAll = computeSessionViews(scan.sessions, scan.toolCalls, scan.turns, calculator);
     const toolsAll = computeTools(scan.toolCalls);
     const subagentsAll = computeSubagents(scan.subagents);
@@ -1569,7 +1577,8 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     }
     return {
         allModels,
-        modelVendors: Object.fromEntries(modelVendors),
+        modelVendors: Object.fromEntries(modelVendors.byModel),
+        modelSeries: Object.fromEntries(modelVendors.seriesByModel),
         dailyByModel,
         sessionsAll,
         toolsAll,
