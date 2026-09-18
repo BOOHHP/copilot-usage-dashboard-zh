@@ -335,6 +335,31 @@ function computeAllModels(turns) {
         .sort((a, b) => b[1] - a[1])
         .map(e => e[0]);
 }
+// zh fork (1.11.6): per-model source label (Copilot vs BYOK relays like
+// OpenRouter / n1n.ai) so the filter panel can group models by vendor.
+// Reuses the same precedence as `vendorByModel`: a model seen through more
+// than one vendor stays unattributed (undefined) — the catalog decides then.
+function computeModelVendors(turns) {
+    const byModel = new Map();
+    for (const t of turns) {
+        if (!t.modelVendor) {
+            continue;
+        }
+        const m = t.modelFamily || "unknown";
+        const label = (0, scanner_1.providerLabel)(t.modelVendor, t.modelProvider);
+        if (!label) {
+            continue;
+        }
+        const prev = byModel.get(m);
+        if (prev === undefined) {
+            byModel.set(m, label);
+        }
+        else if (prev !== label) {
+            byModel.set(m, undefined); // multi-source: no single vendor
+        }
+    }
+    return byModel;
+}
 // ─── Build Dashboard Data ─────────────────────────────────────
 // NOTE: a per-activation monotonic ratchet on `liveOtel.sessionAIC` was
 // removed (was `applySessionAICRatchet` keyed by `activationTime`). It
@@ -356,6 +381,7 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     const config = aicConfig ?? aicCredits_1.DEFAULT_AIC_CONFIG;
     const calculator = (0, aicCredits_1.createCalculatorFromConfig)(config);
     const allModels = computeAllModels(scan.turns);
+    const modelVendors = computeModelVendors(scan.turns);
     const dailyByModel = computeDaily(scan.turns);
     const sessionsAll = computeSessionViews(scan.sessions, scan.toolCalls, scan.turns, calculator);
     const toolsAll = computeTools(scan.toolCalls);
@@ -1543,6 +1569,7 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     }
     return {
         allModels,
+        modelVendors: Object.fromEntries(modelVendors),
         dailyByModel,
         sessionsAll,
         toolsAll,

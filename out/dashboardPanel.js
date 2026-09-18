@@ -189,6 +189,14 @@ h1 svg { width: 22px; height: 22px; }
 .model-dd-list label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; }
 .model-dd-list label:hover { background: var(--border); }
 .model-dd-list input[type="checkbox"] { margin: 0; cursor: pointer; }
+/* zh fork: vendor-grouped model filter */
+.model-dd-group { padding: 2px 0 4px; border-bottom: 1px solid var(--border); }
+.model-dd-group:last-child { border-bottom: none; }
+.model-dd-group-head { display: flex !important; align-items: center; gap: 6px; padding: 4px 6px 3px !important; font-size: 11px !important; color: var(--fg); background: transparent !important; cursor: pointer; position: sticky; top: 0; background: var(--card) !important; z-index: 1; }
+.model-dd-group-head strong { font-weight: 700; letter-spacing: 0.3px; }
+.model-dd-group-head:hover { background: var(--card) !important; }
+.model-dd-count { margin-left: auto; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.model-dd-item { padding-left: 20px !important; }
 .btn-refresh { font-size: 13px; padding: 4px 9px; background: var(--card); color: var(--green); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; line-height: 1; }
 .btn-refresh:hover { background: var(--border); border-color: var(--green); }
 .btn-refresh.spinning { animation: spin 0.8s linear; pointer-events: none; }
@@ -495,7 +503,7 @@ const I18N = {
   'HOT':'热','COLD':'冷',
   'Refresh now':'立即刷新','with':'，共','tokens (':' token（','% of period). Daily average: ':'% 占比）。日均：','tokens across ':' token，分布在 ','days.':' 天。','averaging ':'，平均 ','turns/hour. ':' 轮/小时。','% of activity falls within ±3h of peak.':'% 的活动集中在峰值 ±3 小时内。',
   'Usage-Based Billing':'按用量计费','plan allowance':'套餐额度','above allowance':'超出额度',
-  'shown':' 个','credits':'积分','Export':'导出','Export stats (Markdown/JSON)':'导出统计（Markdown/JSON）','Reset':'重置','Reset view (restore default filters)':'重置视图（恢复默认筛选，保留语言）'
+  'shown':' 个','credits':'积分','Export':'导出','Export stats (Markdown/JSON)':'导出统计（Markdown/JSON）','Reset':'重置','Reset view (restore default filters)':'重置视图（恢复默认筛选，保留语言）','Other':'其他'
 };
 const I18N_SUB = [
   ['Updated: ','更新于 '],['(auto-refresh off)','（自动刷新已关闭）'],
@@ -720,10 +728,32 @@ function buildFilterBar() {
   else if (selCount === allCount) modelBtnText = T('All Models (') + allCount + ')';
   else modelBtnText = selCount + T(' of ') + allCount + T(' selected');
 
-  let modelOpts = '';
+  // zh fork: group models by source vendor (Copilot / OpenRouter / n1n.ai /
+  // …), with a per-group toggle. Unattributed models land in "Other".
+  const VENDOR = DATA.modelVendors || {};
+  const groups = new Map();
   DATA.allModels.forEach(m => {
-    const chk = selectedModels.has(m) ? ' checked' : '';
-    modelOpts += '<label><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
+    const g = VENDOR[m] || T('Other');
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(m);
+  });
+  // Copilot first, then named relays alphabetically, "Other" last.
+  const groupOrder = Array.from(groups.keys()).sort((a, b) => {
+    const rank = k => k === 'Copilot' ? 0 : k === T('Other') ? 2 : 1;
+    return rank(a) - rank(b) || a.localeCompare(b);
+  });
+  let modelOpts = '';
+  groupOrder.forEach(g => {
+    const items = groups.get(g);
+    const allOn = items.every(m => selectedModels.has(m));
+    modelOpts += '<div class="model-dd-group" data-group="'+esc(g)+'">'
+      + '<label class="model-dd-group-head"><input type="checkbox" data-vendor-group="'+esc(g)+'"'+(allOn?' checked':'')+' onchange="toggleVendorGroup(this)">'
+      + '<strong>'+esc(g)+'</strong><span class="model-dd-count">'+items.filter(m=>selectedModels.has(m)).length+'/'+items.length+'</span></label>';
+    items.forEach(m => {
+      const chk = selectedModels.has(m) ? ' checked' : '';
+      modelOpts += '<label class="model-dd-item"><input type="checkbox" data-model="'+esc(m)+'"'+chk+' onchange="toggleModel(this)"><span class="model-tag '+mc(m)+'">'+esc(m)+'</span></label>';
+    });
+    modelOpts += '</div>';
   });
 
   let rangeOpts = '';
@@ -796,16 +826,41 @@ document.addEventListener('click', function(e) {
 function toggleModel(cb) {
   if (cb.checked) selectedModels.add(cb.dataset.model);
   else selectedModels.delete(cb.dataset.model);
+  syncVendorGroupHeads();
   _saveState(); updateModelDDLabel(); queueRender();
+}
+// zh fork: per-vendor group toggle — check/uncheck every model in the group.
+function toggleVendorGroup(cb) {
+  const groupDiv = cb.closest('.model-dd-group');
+  if (!groupDiv) return;
+  groupDiv.querySelectorAll('input[type="checkbox"][data-model]').forEach(c => {
+    c.checked = cb.checked;
+    if (cb.checked) selectedModels.add(c.dataset.model);
+    else selectedModels.delete(c.dataset.model);
+  });
+  _saveState(); updateModelDDLabel(); queueRender();
+}
+// Keep each group header checkbox + count in sync with its member checkboxes.
+function syncVendorGroupHeads() {
+  document.querySelectorAll('.model-dd-group').forEach(g => {
+    const items = Array.from(g.querySelectorAll('input[type="checkbox"][data-model]'));
+    const head = g.querySelector('input[data-vendor-group]');
+    if (!head || !items.length) return;
+    const on = items.filter(c => c.checked).length;
+    head.checked = on === items.length;
+    head.indeterminate = on > 0 && on < items.length;
+    const cnt = g.querySelector('.model-dd-count');
+    if (cnt) cnt.textContent = on + '/' + items.length;
+  });
 }
 function pickAll() {
   DATA.allModels.forEach(m => selectedModels.add(m));
-  document.querySelectorAll('#model-dd input[type="checkbox"]').forEach(c => c.checked = true);
+  document.querySelectorAll('#model-dd input[type="checkbox"]').forEach(c => { c.checked = true; c.indeterminate = false; });
   _saveState(); updateModelDDLabel(); queueRender();
 }
 function pickNone() {
   selectedModels.clear();
-  document.querySelectorAll('#model-dd input[type="checkbox"]').forEach(c => c.checked = false);
+  document.querySelectorAll('#model-dd input[type="checkbox"]').forEach(c => { c.checked = false; c.indeterminate = false; });
   _saveState(); updateModelDDLabel(); queueRender();
 }
 function setRangeDD(r) {
