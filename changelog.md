@@ -7,13 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.11.3] - 2026-09-04
 
-## [1.11.6-zh] - 2026-09-18 (Chinese localization fork)
 
 ### Added
 
 - 模型筛选面板按厂商来源分组：Copilot / OpenRouter / n1n.ai 等各自成组，组头带全选开关与 n/m 计数，未归属模型归入「其他」。
-
----
 
 ## [1.11.5-zh] - 2026-09-18 (Chinese localization fork)
 
