@@ -529,6 +529,7 @@ const I18N_SUB = [
   ['All Models (','全部模型 ('],[' of ',' / '],[' selected',' 已选'],
   [' days)',' 天）'],['(range)','（范围）'],['(all time)','（全部时间）'],['(Jun 1+ only)','（仅 6 月 1 日起）'],
   ['ledger-reconciled','账单对账'],['live-only','仅实时'],['drift ','偏差 '],['CLI: ','CLI：'],
+  ['Daily calendar & chart show ','每日日历与图表仅显示 '],['local per-day activity only','本地逐日活动'],['; the unattributed delta is not spread onto any single day.','；未归属差额不会摊到任何单日。'],
   ['log ','日志'],['transcript ','转录'],['credits','积分']
 ];
 function T(s){
@@ -1398,7 +1399,7 @@ function renderAIC(aic, bounds, filteredSessions) {
   const cacheNote = rangeIsPreAic
     ? '<div style="margin-top:8px;padding:6px 10px;background:var(--border);border-radius:4px;font-size:10px;color:var(--muted)">⚠️ <strong>Pre-AIC estimate:</strong> AI Credits billing started '+AIC_START+'. Credits for this period are reconstructed from token counts at published per-model rates — GitHub did not bill them.</div>'
     : q
-    ? '<div style="margin-top:8px;padding:6px 10px;background:var(--border);border-radius:4px;font-size:10px;color:#4ec9b0">✓ <strong>Reconciled with GitHub:</strong> '+q.creditsUsed.toLocaleString()+' of '+q.entitlement.toLocaleString()+' credits used this cycle, read from GitHub&rsquo;s own ledger (quota_snapshots). Local logs account for '+q.localTotal.toLocaleString()+' — the '+(q.localDelta >= 0 ? '+' : '')+q.localDelta.toLocaleString()+' difference is usage billed outside this machine&rsquo;s debug logs (other devices/IDEs, github.com, cloud agent, or wrapper calls that omit per-request credits).</div>'
+    ? '<div style="margin-top:8px;padding:6px 10px;background:var(--border);border-radius:4px;font-size:10px;color:#4ec9b0">✓ <strong>Reconciled with GitHub:</strong> '+q.creditsUsed.toLocaleString()+' of '+q.entitlement.toLocaleString()+' credits used this cycle, read from GitHub&rsquo;s own ledger (quota_snapshots). Local logs account for '+q.localTotal.toLocaleString()+' — the '+(q.localDelta >= 0 ? '+' : '')+q.localDelta.toLocaleString()+' difference is usage billed outside this machine&rsquo;s debug logs (other devices/IDEs, github.com, cloud agent, or wrapper calls that omit per-request credits). Daily calendar &amp; chart show <strong>local per-day activity only</strong>; the unattributed delta is not spread onto any single day.</div>'
     : aic.isActualFromApi
     ? '<div style="margin-top:8px;padding:6px 10px;background:var(--border);border-radius:4px;font-size:10px;color:#4ec9b0">✓ <strong>Actual billing data:</strong> Credits sourced from API-reported copilotUsageNanoAiu per request. Includes cache discounts.</div>'
     : aic.cachedCredits === 0

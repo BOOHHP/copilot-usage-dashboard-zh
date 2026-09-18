@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.11.3] - 2026-09-04
 
-## [1.11.4-zh] - 2026-09-18 (Chinese localization fork)
+## [1.11.5-zh] - 2026-09-18 (Chinese localization fork)
 
 ### Added
 
 - 🌐 中英双语切换：主仪表盘、侧边栏、状态栏 tooltip 三处界面统一，右上角「中文 / EN」即时切换，选择跨重开保持。
 - 📤 用量导出：命令面板 `Copilot Usage: Export Stats` 或仪表盘「⤓ 导出」按钮，按 Dashboard 分类导出 Markdown / JSON 统计。
-- ↺ 「重置」按钮：刷新不再重置筛选视图；显式点击「↺ 重置」才恢复默认（保留当前语言）。
+- ↺ 「重置」按钮：显式恢复默认筛选（保留当前语言）。
+
+### Fixed
+
+- 每日积分日历/图表不再把 GitHub 与本地的对账差额摊到最近一天——此前某一天的数值会接近整个周期总量。每日现在只显示本地可见的真实逐日消耗；差额作为独立「未归属用量」口径对账，hero 总数仍与 GitHub 一致。
 
 ### Fixed
 

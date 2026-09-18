@@ -1369,15 +1369,15 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     // on the same reconciled number. Booking it on the most recent day with
     // activity keeps the calendar's shape honest — we know the credits were
     // spent, just not which local session produced them.
+    // zh fork (1.11.5): do NOT fold the GitHub-vs-local delta into a single
+    // day. The delta (other machines/IDEs, github.com, the cloud agent, BYOK
+    // relays) has no real per-day shape, so booking it on the latest active
+    // day made the daily calendar and chart read like the whole cycle landed
+    // on one day. `byDay` stays local-only; the remainder is surfaced as
+    // `unattributedTotal` and rendered as a separate reconciling bucket
+    // (hero total, model-table "Other sources & live" row) so headline totals
+    // still match GitHub's ledger.
     const reconciledByDay = new Map(summary.byDay);
-    if (quotaDelta !== 0) {
-        const cycleDays = [...reconciledByDay.keys()]
-            .filter(d => d >= summary.billingCycleStart && d <= summary.billingCycleEnd)
-            .sort();
-        const anchor = cycleDays[cycleDays.length - 1]
-            ?? new Date().toISOString().slice(0, 10);
-        reconciledByDay.set(anchor, Math.max(0, (reconciledByDay.get(anchor) ?? 0) + quotaDelta));
-    }
     // Pace and projection must derive from the reconciled total too, or the
     // hero projects a local-only run rate against a pooled budget and reports
     // percentages in the thousands.
@@ -1409,6 +1409,9 @@ function buildDashboardData(scan, liveStats, aicConfig, agentScan, activationTim
     }
     const aicSummary = {
         totalCredits: totalCr,
+        // zh fork: GitHub-billed minus local-log total (≥ 0), kept OUT of byDay.
+        // Rendered as its own reconciling bucket instead of a fake daily spike.
+        unattributedTotal: Math.max(0, quotaDelta),
         inputCredits: Math.round(summary.inputCredits * 100) / 100,
         outputCredits: Math.round(summary.outputCredits * 100) / 100,
         cachedCredits: Math.round(summary.cachedCredits * 100) / 100,
